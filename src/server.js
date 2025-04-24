@@ -21,7 +21,6 @@ app.post('/api/analyze-report', upload.single('reportImage'), async (req, res) =
       return res.json({ status: false, message: '请上传体检报告图片' });
     }
 
-    // Extract text from the image using Tesseract.js
     console.log('Starting OCR extraction...');
     const { data: { text } } = await Tesseract.recognize(
       req.file.buffer,
@@ -30,7 +29,6 @@ app.post('/api/analyze-report', upload.single('reportImage'), async (req, res) =
     );
     console.log('Extracted text:', text);
 
-    // Parse the extracted text into structured indicators
     try {
       indicators = parseTextToIndicators(text);
       console.log('Parsed indicators:', indicators);
@@ -54,20 +52,20 @@ app.post('/api/analyze-report', upload.single('reportImage'), async (req, res) =
   }
 });
 
-// Function to parse extracted text into structured indicators
 function parseTextToIndicators(text) {
   const lines = text.split('\n').map(line => line.trim()).filter(line => line);
   const indicators = [];
 
-  // Updated regex to better match the health report format
-  const indicatorRegex = /^([A-Z]+)\s+([^\s]+)\s+(\d+\.?\d*)\s+([^\s]+)\s+(\d+\.?\d*\s*-\s*\d+\.?\d*)$/;
+  const indicatorRegex = /^([A-Z]+)\s+([^\d]+)\s+(\d+\.?\d*)\s+([^\s]+)\s+([\d.]+)\s*-\s*([\d.]+)/;
 
   for (const line of lines) {
     const match = line.match(indicatorRegex);
     if (match) {
-      const [, shortName, name, value, unit, referenceRange] = match;
+      const [, shortName, name, value, unit, refMin, refMax] = match;
+      const cleanedName = name.trim();
+      const referenceRange = `${parseFloat(refMin)} - ${parseFloat(refMax)}`;
       indicators.push({
-        指标: name,
+        指标: cleanedName,
         值: parseFloat(value),
         单位: unit,
         参考范围: referenceRange
@@ -76,13 +74,11 @@ function parseTextToIndicators(text) {
   }
 
   if (indicators.length === 0) {
-    throw new Error('无法从图片中提取指标数据');
+    throw new Error('无法从图片中提取指标数据，请检查图片格式');
   }
 
   return indicators;
 }
 
-const PORT = process.env.PORT || 3000;
-app.listen(PORT, () => console.log(`Server running on port ${PORT}`));
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => console.log(`Server running on port ${PORT}`));
