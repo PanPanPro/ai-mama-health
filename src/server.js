@@ -17,18 +17,30 @@ app.post('/api/analyze-report', upload.single('reportImage'), async (req, res) =
 
     let indicators = [];
 
-    if (req.file) {
-      // Extract text from the image using Tesseract.js
-      const { data: { text } } = await Tesseract.recognize(
-        req.file.buffer,
-        'chi_sim', // Use Chinese Simplified for OCR
-        { logger: m => console.log(m) }
-      );
-
-      // Parse the extracted text into structured indicators
-      indicators = parseTextToIndicators(text);
-    } else {
+    if (!req.file) {
       return res.json({ status: false, message: '请上传体检报告图片' });
+    }
+
+    // Extract text from the image using Tesseract.js
+    console.log('Starting OCR extraction...');
+    const { data: { text } } = await Tesseract.recognize(
+      req.file.buffer,
+      'chi_sim',
+      { logger: m => console.log(m) }
+    );
+    console.log('Extracted text:', text);
+
+    // Parse the extracted text into structured indicators
+    try {
+      indicators = parseTextToIndicators(text);
+      console.log('Parsed indicators:', indicators);
+    } catch (error) {
+      console.error('Parsing error:', error.message);
+      return res.json({ status: false, message: `无法解析图片中的指标数据: ${error.message}` });
+    }
+
+    if (indicators.length === 0) {
+      return res.json({ status: false, message: '图片中未检测到有效的指标数据，请确保图片清晰且包含指标信息' });
     }
 
     const result = await analyzeHealthReport(userData, indicators);
@@ -37,6 +49,7 @@ app.post('/api/analyze-report', upload.single('reportImage'), async (req, res) =
     }
     res.json({ status: true, data: result });
   } catch (error) {
+    console.error('Server error:', error.message);
     res.status(500).json({ status: false, message: error.message });
   }
 });
@@ -46,9 +59,9 @@ function parseTextToIndicators(text) {
   const lines = text.split('\n').map(line => line.trim()).filter(line => line);
   const indicators = [];
 
-  // Simple parsing logic: Look for lines with indicator, value, unit, and reference range
-  const indicatorRegex = /^([^\s]+)\s+([^\s]+)\s+(\d+\.?\d*)\s+([^\s]+)\s+(\d+\.?\d*\s*-\s*\d+\.?\d*)$/;
-  
+  // Updated regex to better match the health report format
+  const indicatorRegex = /^([A-Z]+)\s+([^\s]+)\s+(\d+\.?\d*)\s+([^\s]+)\s+(\d+\.?\d*\s*-\s*\d+\.?\d*)$/;
+
   for (const line of lines) {
     const match = line.match(indicatorRegex);
     if (match) {
@@ -63,11 +76,13 @@ function parseTextToIndicators(text) {
   }
 
   if (indicators.length === 0) {
-    throw new Error('无法从图片中提取指标数据，请确保图片清晰且包含指标信息');
+    throw new Error('无法从图片中提取指标数据');
   }
 
   return indicators;
 }
 
+const PORT = process.env.PORT || 3000;
+app.listen(PORT, () => console.log(`Server running on port ${PORT}`));
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => console.log(`Server running on port ${PORT}`));
