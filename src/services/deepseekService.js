@@ -14,6 +14,7 @@ async function analyzeHealthReport(userData, indicators) {
       "忌口建议": []
     }
     确保建议安全、实用，适合中老年用户。避免推荐可能引发过敏或与常见药物相互作用的食物。
+    如果无法分析，请返回JSON格式的错误信息，例如：{"error": "无法分析，请提供清晰的指标数据"}。
   `;
 
   const response = await openai.chat.completions.create({
@@ -23,12 +24,17 @@ async function analyzeHealthReport(userData, indicators) {
     max_tokens: 500,
   });
 
-  // Clean the response to remove Markdown code blocks
   let content = response.choices[0].message.content;
-  // Remove ```json and ``` or any leading/trailing backticks
+  // Remove Markdown code blocks and backticks
   content = content.replace(/```json\n?|\n?```|`/g, '').trim();
 
-  return JSON.parse(content);
+  // Try to parse as JSON
+  try {
+    return JSON.parse(content);
+  } catch (error) {
+    // If parsing fails, return a JSON error
+    return { error: `无法解析响应: ${content}` };
+  }
 }
 
 module.exports = { analyzeHealthReport };
