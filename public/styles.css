@@ -1,1 +1,4 @@
-styles.css
+#cameraContainer { margin-top: 10px; }
+#video { border: 1px solid #ccc; }
+#progress { text-align: center; }
+#result ul { list-style-type: disc; margin-left: 20px; }
