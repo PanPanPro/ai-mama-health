@@ -61,22 +61,30 @@ async function sendRequest(formData) {
 
     if (result.status) {
       const data = result.data;
-      let html = '<h2>分析结果</h2>';
-      html += '<h3>指标分析</h3><ul>';
-      data['指标分析'].forEach(item => {
-        html += `<li><strong>${item.指标}</strong>: ${item.状态} - ${item.说明}</li>`;
-      });
-      html += '</ul>';
-      html += `<h3>饮食建议</h3><p>${data.饮食建议}</p>`;
-      html += '<h3>营养重点</h3><ul>';
-      data.营养重点.forEach(item => html += `<li>${item}</li>`);
-      html += '</ul>';
-      html += '<h3>忌口建议</h3><ul>';
-      data.忌口建议.forEach(item => html += `<li>${item}</li>`);
-      html += '</ul>';
-      document.getElementById('result').innerHTML = html;
+      if (data && data['指标分析'] && Array.isArray(data['指标分析'])) {
+        let html = '<h2>分析结果</h2>';
+        html += '<h3>指标分析</h3><ul>';
+        data['指标分析'].forEach(item => {
+          html += `<li><strong>${item.指标}</strong>: ${item.状态} - ${item.说明}</li>`;
+        });
+        html += '</ul>';
+        html += `<h3>饮食建议</h3><p>${data.饮食建议 || '无'}</p>`;
+        html += '<h3>营养重点</h3><ul>';
+        if (Array.isArray(data.营养重点)) {
+          data.营养重点.forEach(item => html += `<li>${item}</li>`);
+        }
+        html += '</ul>';
+        html += '<h3>忌口建议</h3><ul>';
+        if (Array.isArray(data.忌口建议)) {
+          data.忌口建议.forEach(item => html += `<li>${item}</li>`);
+        }
+        html += '</ul>';
+        document.getElementById('result').innerHTML = html;
+      } else {
+        document.getElementById('result').innerHTML = '<p>分析失败: 响应数据格式不正确</p>';
+      }
     } else {
-      document.getElementById('result').innerHTML = '<p>分析失败: ' + result.message + '</p>';
+      document.getElementById('result').innerHTML = '<p>分析失败: ' + (result.message || '未知错误') + '</p>';
     }
   } catch (error) {
     document.getElementById('progress').style.display = 'none';
