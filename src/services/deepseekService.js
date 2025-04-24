@@ -23,7 +23,12 @@ async function analyzeHealthReport(userData, indicators) {
     max_tokens: 500,
   });
 
-  return JSON.parse(response.choices[0].message.content);
+  // Clean the response to remove Markdown code blocks
+  let content = response.choices[0].message.content;
+  // Remove ```json and ``` or any leading/trailing backticks
+  content = content.replace(/```json\n?|\n?```|`/g, '').trim();
+
+  return JSON.parse(content);
 }
 
 module.exports = { analyzeHealthReport };
