@@ -2,13 +2,11 @@ const express = require('express');
 const multer = require('multer');
 const { analyzeHealthReport } = require('./services/deepseekService');
 const Tesseract = require('tesseract.js');
-const path = require('path');
 
 const app = express();
 app.use(express.json());
 app.use(express.static('public'));
 
-// Configure multer for file uploads
 const upload = multer({ storage: multer.memoryStorage() });
 
 app.post('/api/analyze-report', upload.single('reportImage'), async (req, res) => {
@@ -23,17 +21,10 @@ app.post('/api/analyze-report', upload.single('reportImage'), async (req, res) =
     }
 
     console.log('Starting OCR extraction...');
-    // Specify the path to the Tesseract core files
-    const corePath = path.join(__dirname, '../node_modules/tesseract.js-core');
     const { data: { text } } = await Tesseract.recognize(
       req.file.buffer,
       'chi_sim',
-      {
-        logger: m => console.log(m),
-        corePath: corePath,
-        workerPath: path.join(__dirname, '../node_modules/tesseract.js/src/worker.min.js'),
-        langPath: path.join(__dirname, '../node_modules/tesseract.js-ocr/lang-data')
-      }
+      { logger: m => console.log(m) } // Let Tesseract.js handle resource paths automatically
     );
     console.log('Extracted text:', text);
 
@@ -64,20 +55,25 @@ function parseTextToIndicators(text) {
   const lines = text.split('\n').map(line => line.trim()).filter(line => line);
   const indicators = [];
 
-  const indicatorRegex = /^([A-Z]+)\s+([^\d]+?)\s+(\d+\.?\d*)\s+([^\s]+)\s+([\d.]+)\s*[-–]\s*([\d.]+)/;
+  const indicatorRegex = /^([A-Z]+)\s+(.+?)\s+(\d+\.?\d*)\s+([^\s]+)\s+([\d.]+)\s*[-–]\s*([\d.]+)/;
+
+  console.log('Parsing lines:', lines);
 
   for (const line of lines) {
+    console.log('Processing line:', line);
     const match = line.match(indicatorRegex);
     if (match) {
       const [, shortName, name, value, unit, refMin, refMax] = match;
       const cleanedName = name.trim();
       const referenceRange = `${parseFloat(refMin)} - ${parseFloat(refMax)}`;
-      indicators.push({
+      const indicator = {
         指标: cleanedName,
         值: parseFloat(value),
         单位: unit,
         参考范围: referenceRange
-      });
+      };
+      indicators.push(indicator);
+      console.log('Matched indicator:', indicator);
     }
   }
 
