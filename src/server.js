@@ -2,6 +2,7 @@ const express = require('express');
 const multer = require('multer');
 const { analyzeHealthReport } = require('./services/deepseekService');
 const Tesseract = require('tesseract.js');
+const path = require('path');
 
 const app = express();
 app.use(express.json());
@@ -22,10 +23,17 @@ app.post('/api/analyze-report', upload.single('reportImage'), async (req, res) =
     }
 
     console.log('Starting OCR extraction...');
+    // Specify the path to the Tesseract core files
+    const corePath = path.join(__dirname, '../node_modules/tesseract.js-core');
     const { data: { text } } = await Tesseract.recognize(
       req.file.buffer,
       'chi_sim',
-      { logger: m => console.log(m) }
+      {
+        logger: m => console.log(m),
+        corePath: corePath,
+        workerPath: path.join(__dirname, '../node_modules/tesseract.js/src/worker.min.js'),
+        langPath: path.join(__dirname, '../node_modules/tesseract.js-ocr/lang-data')
+      }
     );
     console.log('Extracted text:', text);
 
@@ -56,7 +64,7 @@ function parseTextToIndicators(text) {
   const lines = text.split('\n').map(line => line.trim()).filter(line => line);
   const indicators = [];
 
-  const indicatorRegex = /^([A-Z]+)\s+([^\d]+)\s+(\d+\.?\d*)\s+([^\s]+)\s+([\d.]+)\s*-\s*([\d.]+)/;
+  const indicatorRegex = /^([A-Z]+)\s+([^\d]+?)\s+(\d+\.?\d*)\s+([^\s]+)\s+([\d.]+)\s*[-–]\s*([\d.]+)/;
 
   for (const line of lines) {
     const match = line.match(indicatorRegex);
